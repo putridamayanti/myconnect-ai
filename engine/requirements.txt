@@ -1,0 +1,15 @@
+alembic
+bcrypt
+email-validator
+fastapi
+greenlet
+google-genai
+python-jose[cryptography]
+python-multipart
+pydantic>=2.0
+python-dotenv
+pydantic-settings
+sqlalchemy
+sqlmodel
+starlette
+uvicorn[standard]
