@@ -8,6 +8,6 @@ export class MessageController {
 
   @Post()
   create(@Body() req: CreateMessageDto) {
-    return this.service.create(req)
+    return this.service.create(req);
   }
 }

@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Get, Param, Patch, Delete } from '@nestjs/common';
 import { EventService } from './event.service';
-import { CreateEventDto } from './dto/event.dto';
+import { CreateEventDto, SendMessageDto } from './dto/event.dto';
 
 @Controller('events')
 export class EventController {
@@ -29,5 +29,10 @@ export class EventController {
   @Delete(':id')
   delete(@Param('id') id: string) {
     return this.service.delete(id);
+  }
+
+  @Post(':id/concierge/messages')
+  sendMessage(@Param('id') id: string, @Body() req: SendMessageDto) {
+    return this.service.sendMessage(id, req);
   }
 }

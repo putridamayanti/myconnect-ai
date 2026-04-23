@@ -1,6 +1,6 @@
-import { IsString, IsDateString, IsObject, IsOptional } from 'class-validator';
+import { IsString, IsObject, IsOptional } from 'class-validator';
 
-export class CreateToolLogDto {
+export class CreateToolCallDto {
   @IsString()
   message_id: string;
 

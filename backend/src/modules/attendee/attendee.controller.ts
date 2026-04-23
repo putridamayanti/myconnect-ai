@@ -1,17 +1,29 @@
-import { Controller, Post, Body, Get, Param, Put, Patch, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Patch,
+  Delete,
+  UseInterceptors,
+  ClassSerializerInterceptor,
+} from '@nestjs/common';
 import { AttendeeService } from './attendee.service';
 import { CreateAttendeeDto } from './dto/attendee.dto';
+import { Attendee } from './attendee.entity';
 
 @Controller('attendees')
 export class AttendeeController {
   constructor(private readonly service: AttendeeService) {}
 
+  @UseInterceptors(ClassSerializerInterceptor)
   @Post()
-  create(@Body() dto: CreateAttendeeDto) {
+  create(@Body() dto: CreateAttendeeDto): Promise<Attendee> {
     return this.service.create(dto);
   }
 
-
+  @UseInterceptors(ClassSerializerInterceptor)
   @Get()
   findAll() {
     return this.service.findAll();

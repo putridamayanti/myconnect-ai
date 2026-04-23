@@ -1,0 +1,81 @@
+{
+  "attendees": [
+    {
+      "id": "249155d5-5099-40d9-b7b6-b346435f5533",
+      "event_id": "6246fb18-cee1-4400-96ee-84bc96f7ce92",
+      "name": "Alicia Jane",
+      "headline": "Senior Backend Engineer",
+      "bio": "Backend engineer specializing in Go, Node.js, and AI integrations.",
+      "company": "Freelance",
+      "role": "Backend Engineer",
+      "skills": ["nodejs", "golang", "ai", "kubernetes"],
+      "looking_for": "Looking for AI startup to join as technical co-founder",
+      "open_to_chat": true
+    },
+    {
+      "id": "190731fd-6a3b-4c68-9c24-420227e84b5b",
+      "event_id": "6246fb18-cee1-4400-96ee-84bc96f7ce92",
+      "name": "Sarah Lim",
+      "headline": "Founder at LedgerAI",
+      "bio": "Building B2B finance automation tools.",
+      "company": "LedgerAI",
+      "role": "Founder",
+      "skills": ["ai", "fintech", "startup"],
+      "looking_for": "Looking for backend co-founder with NestJS experience",
+      "open_to_chat": true
+    },
+    {
+      "id": "fe8be6ed-d283-4424-a6a4-d7bea2f6586a",
+      "event_id": "6246fb18-cee1-4400-96ee-84bc96f7ce92",
+      "name": "Budi Santoso",
+      "headline": "CTO at ClimateTech ID",
+      "bio": "Working on climate tech solutions in Indonesia.",
+      "company": "ClimateTech ID",
+      "role": "CTO",
+      "skills": ["climate", "iot", "ai"],
+      "looking_for": "Looking for investors and AI engineers",
+      "open_to_chat": true
+    },
+    {
+      "id": "4da9b182-f059-456c-8775-21c755076a9b",
+      "event_id": "6246fb18-cee1-4400-96ee-84bc96f7ce92",
+      "name": "Michael Tan",
+      "headline": "VC at SEA Ventures",
+      "bio": "Investing in early-stage startups in Southeast Asia.",
+      "company": "SEA Ventures",
+      "role": "Investor",
+      "skills": ["investment", "startup", "saas"],
+      "looking_for": "Looking for promising B2B SaaS startups",
+      "open_to_chat": true
+    }
+  ],
+  "messages": [
+    {
+      "id": "e0f3bd76-4cad-45c4-9b57-9ac2cfa79596",
+      "event_id": "6246fb18-cee1-4400-96ee-84bc96f7ce92",
+      "attendee_id": "249155d5-5099-40d9-b7b6-b346435f5533",
+      "role": "user",
+      "content": {
+        "text": "I want to find AI startups looking for technical co-founder"
+      }
+    },
+    {
+      "id": "e0f3bd76-4cad-45c4-9b57-9ac2cfa79596",
+      "event_id": "6246fb18-cee1-4400-96ee-84bc96f7ce92",
+      "attendee_id": "249155d5-5099-40d9-b7b6-b346435f5533",
+      "role": "user",
+      "content": {
+        "text": "I want to find AI startups looking for technical co-founder"
+      }
+    },
+    {
+      "id": "e0f3bd76-4cad-45c4-9b57-9ac2cfa79596",
+      "event_id": "6246fb18-cee1-4400-96ee-84bc96f7ce92",
+      "attendee_id": "249155d5-5099-40d9-b7b6-b346435f5533",
+      "role": "user",
+      "content": {
+        "text": "Can you help me write an introduction message to reach out to Sarah Lim?"
+      }
+    }
+  ]
+}

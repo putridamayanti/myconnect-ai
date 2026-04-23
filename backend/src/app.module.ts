@@ -7,17 +7,19 @@ import { ConfigModule } from '@nestjs/config';
 import { ConciergeModule } from './modules/concierge/concierge.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { AttendeeModule } from './modules/attendee/attendee.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true
+      isGlobal: true,
     }),
     DatabaseModule,
     EventModule,
     AttendeeModule,
     ConciergeModule,
-    FeedbackModule
+    FeedbackModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,10 +1,21 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+} from 'typeorm';
 import { Event } from '../event/event.entity';
+import { Exclude } from 'class-transformer';
 
 @Entity('attendees')
 export class Attendee {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column({ nullable: true })
+  event_id: string;
 
   @Column()
   name: string;
@@ -30,17 +41,25 @@ export class Attendee {
   @Column({ default: true })
   open_to_chat: boolean;
 
+  @Exclude()
   @Column({ type: 'vector', nullable: true })
-  embedding: number[]
+  embedding: number[];
 
-  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)'})
-  created_at: Date
+  @CreateDateColumn({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP(6)',
+  })
+  created_at: Date;
 
-  @UpdateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)', onUpdate: 'CURRENT_TIMESTAMP(6)' })
-  updated_at: Date
+  @UpdateDateColumn({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP(6)',
+    onUpdate: 'CURRENT_TIMESTAMP(6)',
+  })
+  updated_at: Date;
 
   @ManyToOne(() => Event, (event) => event.attendees, {
-    onDelete: 'CASCADE'
+    onDelete: 'CASCADE',
   })
-  event: Event
+  event: Event;
 }

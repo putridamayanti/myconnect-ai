@@ -8,11 +8,23 @@ import { CreateMessageDto } from './dto/message.dto';
 export class MessageService {
   constructor(
     @InjectRepository(Message)
-    private repo: Repository<Message>
+    private repo: Repository<Message>,
   ) {}
 
   create(req: CreateMessageDto) {
-    const message = this.repo.create(req as any)
-    return this.repo.save(message)
+    const message = this.repo.create(req);
+    return this.repo.save(message);
+  }
+
+  findAllByEventAndAttendee(eventId: string, attendeeId: string) {
+    return this.repo.find({
+      where: {
+        event_id: eventId,
+        attendee_id: attendeeId,
+      },
+      order: {
+        created_at: 'ASC',
+      },
+    });
   }
 }

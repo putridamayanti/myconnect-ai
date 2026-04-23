@@ -13,3 +13,11 @@ export class CreateEventDto {
   @IsDateString()
   endDate: string;
 }
+
+export class SendMessageDto {
+  @IsString()
+  attendee_id: string;
+
+  @IsString()
+  message: string;
+}

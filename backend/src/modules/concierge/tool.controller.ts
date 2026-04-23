@@ -1,13 +1,13 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { ToolLogService } from './tool.service';
-import { CreateToolLogDto } from './dto/tool.dto';
+import { ToolCallService } from './tool.service';
+import { CreateToolCallDto } from './dto/tool.dto';
 
-@Controller('tool-logs')
-export class ToolLogController {
-  constructor(private readonly service: ToolLogService) {}
+@Controller('tool-calls')
+export class ToolCallController {
+  constructor(private readonly service: ToolCallService) {}
 
   @Post()
-  create(@Body() req: CreateToolLogDto) {
-    return this.service.create(req)
+  create(@Body() req: CreateToolCallDto) {
+    return this.service.create(req);
   }
 }

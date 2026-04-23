@@ -1,4 +1,5 @@
-import { IsString, IsDateString, IsObject } from 'class-validator';
+import { IsString, IsObject } from 'class-validator';
+import { MessageRole } from '../message.entity';
 
 export class CreateMessageDto {
   @IsString()
@@ -8,7 +9,7 @@ export class CreateMessageDto {
   attendee_id: string;
 
   @IsString()
-  role: string;
+  role: MessageRole;
 
   @IsObject()
   content: any;
