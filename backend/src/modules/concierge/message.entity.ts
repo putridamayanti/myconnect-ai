@@ -1,8 +1,9 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
@@ -17,9 +18,11 @@ export class Message {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column()
   event_id: string;
 
+  @Index()
   @Column()
   attendee_id: string;
 
@@ -29,6 +32,7 @@ export class Message {
   @Column({ type: 'jsonb' })
   content: any;
 
+  @Index()
   @CreateDateColumn({
     type: 'timestamp',
     default: () => 'CURRENT_TIMESTAMP(6)',

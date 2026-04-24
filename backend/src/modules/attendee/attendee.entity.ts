@@ -1,19 +1,21 @@
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
   ManyToOne,
 } from 'typeorm';
-import { Event } from '../event/event.entity';
 import { Exclude } from 'class-transformer';
+import { Event } from '../event/event.entity';
 
 @Entity('attendees')
 export class Attendee {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column({ nullable: true })
   event_id: string;
 
@@ -38,6 +40,7 @@ export class Attendee {
   @Column({ type: 'text' })
   looking_for: string;
 
+  @Index()
   @Column({ default: true })
   open_to_chat: boolean;
 
@@ -45,6 +48,7 @@ export class Attendee {
   @Column({ type: 'vector', nullable: true })
   embedding: number[];
 
+  @Index()
   @CreateDateColumn({
     type: 'timestamp',
     default: () => 'CURRENT_TIMESTAMP(6)',

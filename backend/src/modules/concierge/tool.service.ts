@@ -4,6 +4,7 @@ import { ToolCall } from './tool.entity';
 import { Repository } from 'typeorm';
 import { CreateToolCallDto } from './dto/tool.dto';
 import { AttendeeService } from '../attendee/attendee.service';
+import { MessageService } from './message.service';
 
 @Injectable()
 export class ToolCallService {
@@ -11,6 +12,7 @@ export class ToolCallService {
     @InjectRepository(ToolCall)
     private repo: Repository<ToolCall>,
     private attendeeService: AttendeeService,
+    private messageService: MessageService,
   ) {}
 
   create(req: CreateToolCallDto) {
@@ -30,8 +32,10 @@ export class ToolCallService {
       case 'score_match':
         return this.attendeeService.scoreMatch(
           args.sourceAttendeeId,
-          args.attendeeId,
+          attendeeId,
         );
+      case 'draft_intro_message':
+        return this.messageService.draftIntroMessage(args, attendeeId);
       default:
         return null;
     }

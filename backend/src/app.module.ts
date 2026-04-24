@@ -8,6 +8,7 @@ import { ConciergeModule } from './modules/concierge/concierge.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { AttendeeModule } from './modules/attendee/attendee.module';
 import { AiModule } from './modules/ai/ai.module';
+import { LoggerModule } from 'nestjs-pino';
 
 @Module({
   imports: [
@@ -20,6 +21,13 @@ import { AiModule } from './modules/ai/ai.module';
     ConciergeModule,
     FeedbackModule,
     AiModule,
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport: process.env.NODE_ENV !== 'production'
+          ? { target: 'pino-pretty' }
+          : undefined,
+      },
+    }),
   ],
   controllers: [AppController],
   providers: [AppService],

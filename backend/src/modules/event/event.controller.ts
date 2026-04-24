@@ -1,6 +1,20 @@
-import { Controller, Post, Body, Get, Param, Patch, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  Patch,
+  Delete,
+  Query,
+} from '@nestjs/common';
 import { EventService } from './event.service';
-import { CreateEventDto, SendMessageDto } from './dto/event.dto';
+import {
+  CreateEventDto,
+  EventFilter,
+  SendMessageDto,
+  UpdateEventDto,
+} from './dto/event.dto';
 
 @Controller('events')
 export class EventController {
@@ -12,8 +26,8 @@ export class EventController {
   }
 
   @Get()
-  findAll() {
-    return this.service.findAll();
+  findAll(@Query() filter: EventFilter) {
+    return this.service.findAll(filter);
   }
 
   @Get(':id')
@@ -22,7 +36,7 @@ export class EventController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() req: any) {
+  update(@Param('id') id: string, @Body() req: UpdateEventDto) {
     return this.service.update(id, req);
   }
 
@@ -33,6 +47,6 @@ export class EventController {
 
   @Post(':id/concierge/messages')
   sendMessage(@Param('id') id: string, @Body() req: SendMessageDto) {
-    return this.service.sendMessage(id, req);
+    return this.service.eventSendMessages(id, req);
   }
 }

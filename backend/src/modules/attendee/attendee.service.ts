@@ -2,9 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { Attendee } from './attendee.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CreateAttendeeDto, UpdateAttendeeDto } from './dto/attendee.dto';
+import {
+  AttendeeFilter,
+  CreateAttendeeDto,
+  UpdateAttendeeDto,
+} from './dto/attendee.dto';
 import { EmbeddingService } from '../ai/embedding.service';
-import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class AttendeeService {
@@ -13,8 +16,7 @@ export class AttendeeService {
     private repo: Repository<Attendee>,
     private dataSource: DataSource,
     private embeddingService: EmbeddingService,
-    private aiService: AiService,
-  ) {}
+  ) { }
 
   private buildProfile(attendee: Partial<Attendee>): string {
     return `
@@ -29,26 +31,6 @@ export class AttendeeService {
     `;
   }
 
-  private buildReasonPrompt(
-    source: Partial<Attendee> | null,
-    candidate: Partial<Attendee> | null,
-    shared: string[],
-  ) {
-    return `
-      Explain why these two attendees are a good match.
-      Source:
-      ${JSON.stringify(source)}
-      
-      Candidate:
-      ${JSON.stringify(candidate)}
-      
-      Shared:
-      ${shared.join(', ')}
-      
-      Keep it concise (2-3 sentences).
-      `;
-  }
-
   async create(dto: CreateAttendeeDto) {
     const attendee = this.repo.create(dto);
 
@@ -58,12 +40,55 @@ export class AttendeeService {
     return this.repo.save(attendee);
   }
 
-  findAll() {
-    return this.repo.find();
+  async findAll(filter: AttendeeFilter) {
+    const query = this.repo.createQueryBuilder('attendee');
+
+    if (filter.search) {
+      query.andWhere(
+        '(LOWER(attendee.name) LIKE LOWER(:search) OR LOWER(attendee.headline) LIKE LOWER(:search) OR LOWER(attendee.role) ' +
+        'LIKE LOWER(:search) OR LOWER(attendee.looking_for) LIKE LOWER(:search))',
+        { search: `%${filter.search}%` },
+      );
+    }
+
+    if (filter.skills && filter.skills.length > 0) {
+      query.andWhere('attendee.skill IN (:...skills)', {
+        skills: filter.skills,
+      });
+    }
+
+    if (filter.open_to_chat !== undefined) {
+      query.andWhere('attendee.open_to_chat = :open_to_chat', {
+        open_to_chat: filter.open_to_chat,
+      });
+    }
+
+    query.orderBy(`attendee.${filter.sort_by}`, filter.sort_order);
+
+    const page = filter.page || 1;
+    const limit = filter.limit || 10;
+    const skip = (page - 1) * limit;
+
+    query.skip(skip).take(limit);
+
+    const [items, total] = await query.getManyAndCount();
+
+    return {
+      items,
+      meta: {
+        total,
+        page,
+        last_page: Math.ceil(total / limit),
+      },
+    };
   }
 
   findById(id: string) {
     return this.repo.findOneBy({ id: id });
+  }
+
+  findByName(name: string) {
+    return this.repo.findOneBy({ name: name });
   }
 
   async update(id: string, req: UpdateAttendeeDto) {
@@ -96,7 +121,7 @@ export class AttendeeService {
       WHERE event_id = $2
         AND open_to_chat = true
       ORDER BY distance ASC
-      LIMIT 10
+      LIMIT 5
     `,
       [vector, eventId],
     );
@@ -108,42 +133,22 @@ export class AttendeeService {
     const sourceAttendee = await this.repo.findOneBy({ id: sourceAttendeeId });
     const attendee = await this.repo.findOneBy({ id: attendeeId });
 
-    let score = 0;
-    let sharedItems: string[] = [];
+    const resp = await fetch(`${process.env.ENGINE_API_URL}/scores`, {
+      method: 'POST',
+      body: JSON.stringify({
+        source: sourceAttendee,
+        candidate: attendee,
+      }),
+    });
 
-    const overlapSkills = sourceAttendee?.skills.filter((e) =>
-      attendee?.skills?.includes(e),
-    );
+    const result: any = await resp.json();
 
-    if (overlapSkills && overlapSkills.length > 0) {
-      score += overlapSkills.length * 10;
-      sharedItems = [...sharedItems, ...overlapSkills];
+    if (!resp.ok) {
+      return { error: result?.error ?? 'Failed to calculate the score' };
     }
-
-    if (
-      sourceAttendee?.role &&
-      attendee?.looking_for
-        ?.toLowerCase()
-        .includes(sourceAttendee?.role?.toLowerCase())
-    ) {
-      score += 25;
-      sharedItems = [...sharedItems, attendee?.looking_for];
-    }
-
-    score = Math.min(score, 100);
-
-    const reasonPrompt = this.buildReasonPrompt(
-      sourceAttendee,
-      attendee,
-      sharedItems,
-    );
-    const reason = await this.aiService.generateContent(reasonPrompt);
 
     return {
-      data: {
-        score,
-        reason,
-      },
+      data: result,
     };
   }
 }

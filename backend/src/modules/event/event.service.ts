@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Event } from './event.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CreateEventDto, SendMessageDto } from './dto/event.dto';
+import { CreateEventDto, EventFilter, SendMessageDto } from './dto/event.dto';
 import { MessageService } from '../concierge/message.service';
 import { MessageRole } from '../concierge/message.entity';
 import { AiService } from '../ai/ai.service';
 import { tools } from '../ai/tools';
 import { ToolCallService } from '../concierge/tool.service';
+import { Part } from '@google/genai';
+import { PinoLogger } from 'nestjs-pino';
 
 @Injectable()
 export class EventService {
@@ -17,22 +19,55 @@ export class EventService {
     private messageService: MessageService,
     private aiService: AiService,
     private toolCallService: ToolCallService,
-  ) {}
+    private readonly logger: PinoLogger,
+  ) {
+    this.logger.setContext(EventService.name);
+  }
+
+  log(action: string, args: Record<string, any>, message: string) {
+    this.logger.info({ action, ...args }, message ?? '');
+  }
 
   create(dto: CreateEventDto) {
     const event = this.repo.create(dto);
     return this.repo.save(event);
   }
 
-  findAll() {
-    return this.repo.find();
+  async findAll(filter: EventFilter) {
+    const query = this.repo.createQueryBuilder('event');
+
+    if (filter.search) {
+      query.andWhere(
+        '(LOWER(event.title) LIKE LOWER(:search) OR LOWER(event.location) LIKE LOWER(:search)',
+        { search: `%${filter.search}%` },
+      );
+    }
+
+    query.orderBy(`event.${filter.sort_by}`, filter.sort_order);
+
+    const page = filter.page || 1;
+    const limit = filter.limit || 10;
+    const skip = (page - 1) * limit;
+
+    query.skip(skip).take(limit);
+
+    const [items, total] = await query.getManyAndCount();
+
+    return {
+      items,
+      meta: {
+        total,
+        page,
+        last_page: Math.ceil(total / limit),
+      },
+    };
   }
 
   findById(id: string) {
     return this.repo.findOneBy({ id: id });
   }
 
-  update(id: string, req: any) {
+  update(id: string, req: Partial<Event>) {
     return this.repo.update(id, req);
   }
 
@@ -40,9 +75,35 @@ export class EventService {
     return this.repo.delete(id);
   }
 
-  async sendMessage(id: string, req: SendMessageDto) {
+  validateToolCall(name: string, args: any) {
+    const allowedTools = [
+      'search_attendees',
+      'score_match',
+      'draft_intro_message',
+    ];
+
+    if (!allowedTools.includes(name)) {
+      console.log('Invalid Tool: Invalid arguments');
+      return false;
+    }
+
+    if (typeof args !== 'object') {
+      console.log('Invalid Tool: Invalid arguments');
+      return false;
+    }
+
+    return true;
+  }
+
+  async eventSendMessages(eventId: string, req: SendMessageDto) {
+    this.log(
+      'send_message',
+      { eventId, attendeeId: req.attendee_id },
+      'Sending message to AI',
+    );
+
     const resMessage = await this.messageService.create({
-      event_id: id,
+      event_id: eventId,
       attendee_id: req.attendee_id,
       role: MessageRole.USER,
       content: {
@@ -51,112 +112,103 @@ export class EventService {
     });
 
     const history = await this.messageService.findAllByEventAndAttendee(
-      id,
+      eventId,
       req.attendee_id,
     );
 
-    const messages = history.map((m) => ({
+    let messages = history.map((m) => ({
       role: m.role,
       parts: [m.content],
     }));
 
-    const resp = await this.aiService.generateWithTools(messages, tools);
-    const candidate = resp.candidates?.[0];
-    const content = candidate?.content;
-
     let usedTools: string[] = [];
+    let matches: any[] = [];
+    let finalText = '';
 
-    const functionCallPart = content?.parts?.find((p: any) => p?.functionCall);
-    if (!functionCallPart) {
-      return null;
-    }
+    for (let i = 0; i < 5; i++) {
+      this.log(
+        'get_tool',
+        {
+          eventId,
+          attendeeId: req.attendee_id,
+          messageCount: messages?.length,
+        },
+        'Generate with tool',
+      );
 
-    const functionCall = functionCallPart.functionCall;
-    if (functionCall?.name) {
-      usedTools = [...usedTools, functionCall?.name];
-    }
+      const resp = await this.aiService.generateWithTools(messages, tools);
+      const candidate = resp.candidates?.[0];
+      const content = candidate?.content;
 
-    const resExecute: any = await this.toolCallService.executeTool(
-      functionCall?.name ?? '',
-      functionCall?.args,
-      id,
-      req.attendee_id,
-    );
-    if (!resExecute || resExecute?.data?.length === 0) {
-      return null;
-    }
+      const functionCallPart = content?.parts?.find(
+        (p: Part) => p?.functionCall,
+      );
+      if (!functionCallPart) {
+        finalText = resp?.text ?? '';
+        break;
+      }
 
-    await this.toolCallService.create({
-      message_id: resMessage?.id,
-      tool_name: functionCall?.name ?? '',
-      input: functionCall?.args,
-      output: resExecute?.data,
-    });
+      const functionCall = functionCallPart.functionCall;
+      const validateTool = this.validateToolCall(
+        functionCall?.name ?? '',
+        functionCall?.args ?? {},
+      );
+      if (!validateTool) {
+        continue;
+      }
 
-    const followUp = await this.aiService.generateWithTools(
-      [
+      if (functionCall?.name) {
+        usedTools = [...usedTools, functionCall?.name];
+      }
+
+      this.logger.debug(
+        { tool: functionCall?.name, args: functionCall?.args },
+        'Executing tool',
+      );
+
+      const resExecute: any = await this.toolCallService.executeTool(
+        functionCall?.name ?? '',
+        functionCall?.args,
+        eventId,
+        req.attendee_id,
+      );
+      if (!resExecute || resExecute?.data?.length === 0) {
+        break;
+      }
+
+      await this.toolCallService.create({
+        message_id: resMessage?.id,
+        tool_name: functionCall?.name ?? '',
+        input: functionCall?.args,
+        output: resExecute?.data,
+      });
+
+      if (functionCall?.name === 'search_attendees') {
+        matches = resExecute?.data ?? [];
+      }
+
+      messages = [
         ...messages,
         {
-          role: 'model',
+          role: MessageRole.ASSISTANT,
           parts: [
             {
               functionResponse: {
                 name: functionCall?.name,
                 response: {
-                  result: resExecute?.data,
+                  result: resExecute?.data ?? null,
+                  error: resExecute?.error ?? false,
                 },
               },
             },
           ],
         },
-      ],
-      tools,
-    );
-
-    const finalText = followUp.text;
-
-    await this.messageService.create({
-      event_id: id,
-      attendee_id: req.attendee_id,
-      role: MessageRole.ASSISTANT,
-      content: { text: finalText, matches: resExecute?.data },
-    });
-
-    const matches: any[] = [];
-
-    if (
-      resExecute?.data?.length > 0 &&
-      functionCall?.name !== 'draft_intro_message'
-    ) {
-      usedTools = [...usedTools, 'score_match'];
-      for (const [index, item] of resExecute?.data?.entries()) {
-        const candidate: any = item;
-        const args = {
-          sourceAttendeeId: req.attendee_id,
-          attendeeId: candidate?.id,
-        };
-        const result: any =
-          await this.toolCallService.executeTool('score_match', args, '', '');
-
-        console.log('Candidate', candidate?.id, result);
-        matches.push({
-          id: item.id,
-          name: item.name,
-          headline: item.headline,
-          bio: item.bio,
-          company: item.company,
-          role: item.role,
-          looking_for: item.looking_for,
-          open_to_chat: item.open_to_chat,
-          score: result?.data?.score ?? 0,
-          reason: result?.data?.reason ?? ''
-        });
-      }
+      ];
     }
 
     return {
       reply: finalText,
-      matches: matches,
+      matches: matches.map(({ embedding, ...rest }) => rest),
       meta: {
         used_tools: usedTools,
         total_matches: matches.length,

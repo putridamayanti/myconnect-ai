@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -15,3 +15,8 @@ class AttendeeSchema(BaseModel):
 class CalculateScoreRequest(BaseModel):
     source: AttendeeSchema
     candidate: AttendeeSchema
+
+class CalculateScoreResponse(BaseModel):
+    score: int
+    reason: str
+    error: Optional[str] = None

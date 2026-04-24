@@ -1,54 +1,35 @@
 import {
   IsString,
-  IsDateString,
   IsOptional,
   IsIn,
   IsInt,
   Min,
+  IsNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CreateEventDto {
+export class CreateFeedbackDto {
   @IsString()
-  title: string;
+  message_id: string;
 
-  @IsString()
-  location: string;
-
-  @IsDateString()
-  startDate: string;
-
-  @IsDateString()
-  endDate: string;
-}
-
-export class SendMessageDto {
-  @IsString()
-  attendee_id: string;
+  @IsNumber()
+  rating: number;
 
   @IsString()
-  message: string;
-}
-
-export class UpdateEventDto {
-  @IsString()
-  title?: string;
-
-  @IsString()
-  location?: string;
-
-  @IsDateString()
-  startDate?: string;
-
-  @IsDateString()
-  endDate?: string;
-}
-
-export class EventFilter {
   @IsOptional()
-  @IsString()
-  search: string;
+  notes?: string;
+}
 
+export class UpdateFeedbackDto {
+  @IsNumber()
+  rating: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
+export class FeedbackFilter {
   @IsOptional()
   @IsString()
   sort_by?: string = 'created_at';

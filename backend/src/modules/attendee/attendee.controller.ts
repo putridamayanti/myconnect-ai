@@ -7,11 +7,12 @@ import {
   Patch,
   Delete,
   UseInterceptors,
-  ClassSerializerInterceptor,
+  ClassSerializerInterceptor, Query,
 } from '@nestjs/common';
 import { AttendeeService } from './attendee.service';
-import { CreateAttendeeDto } from './dto/attendee.dto';
+import { AttendeeFilter, CreateAttendeeDto } from './dto/attendee.dto';
 import { Attendee } from './attendee.entity';
+import { ResponseDto } from '../../common/dto/response.dto';
 
 @Controller('attendees')
 export class AttendeeController {
@@ -25,8 +26,14 @@ export class AttendeeController {
 
   @UseInterceptors(ClassSerializerInterceptor)
   @Get()
-  findAll() {
-    return this.service.findAll();
+  async findAll(@Query() filter: AttendeeFilter) {
+    const result = await this.service.findAll(filter);
+    const response = {
+      status_code: 200,
+      data: result,
+      message: 'Attendees fetched successfully',
+    };
+    return new ResponseDto(response);
   }
 
   @Get(':id')
