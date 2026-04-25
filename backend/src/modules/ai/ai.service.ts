@@ -45,28 +45,52 @@ export class AiService {
   }
 
   async generateWithTools(messages: any[], tools: any[]) {
-    const systemPrompt = this.buildSystemPrompt();
-    const contents = [
-      {
-        role: MessageRole.USER,
-        parts: [{ text: systemPrompt }],
-      },
-      ...messages,
-    ];
+    try {
+      const systemPrompt = this.buildSystemPrompt();
+      const contents = [
+        {
+          role: MessageRole.USER,
+          parts: [{ text: systemPrompt }],
+        },
+        ...messages,
+      ];
 
-    return await this.client.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents,
-      config: {
-        tools,
-      },
-    });
+      const response = await this.client.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents,
+        config: {
+          tools,
+        },
+      });
+
+      if (!response.candidates || response.candidates.length === 0) {
+        this.logger.error('Gemini returned no candidates');
+        throw new Error('AI failed to generate a response. Please try again.');
+      }
+
+      return response;
+    } catch (error) {
+      this.logger.error({ error }, 'Error calling Gemini API');
+      throw error;
+    }
   }
 
   async generateContent(prompt: string) {
-    return this.client.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    });
+    try {
+      const response = await this.client.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      });
+
+      if (!response.candidates || response.candidates.length === 0) {
+        this.logger.error('Gemini returned no candidates');
+        throw new Error('AI failed to generate a response. Please try again.');
+      }
+
+      return response;
+    } catch (error) {
+      this.logger.error({ error }, 'Error calling Gemini API');
+      throw error;
+    }
   }
 }

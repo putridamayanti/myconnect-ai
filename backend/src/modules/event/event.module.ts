@@ -11,9 +11,13 @@ import { ToolCall } from '../concierge/tool.entity';
 import { AttendeeService } from '../attendee/attendee.service';
 import { Attendee } from '../attendee/attendee.entity';
 import { EmbeddingService } from '../ai/embedding.service';
+import { FeedbackService } from '../feedback/feedback.service';
+import { Feedback } from '../feedback/feedback.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Event, Message, ToolCall, Attendee])],
+  imports: [
+    TypeOrmModule.forFeature([Event, Message, ToolCall, Attendee, Feedback]),
+  ],
   controllers: [EventController],
   providers: [
     EventService,
@@ -22,6 +26,7 @@ import { EmbeddingService } from '../ai/embedding.service';
     ToolCallService,
     AttendeeService,
     EmbeddingService,
+    FeedbackService,
   ],
 })
 export class EventModule {}

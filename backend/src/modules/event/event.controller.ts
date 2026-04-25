@@ -7,46 +7,90 @@ import {
   Patch,
   Delete,
   Query,
+  UseInterceptors,
+  ClassSerializerInterceptor,
 } from '@nestjs/common';
 import { EventService } from './event.service';
-import {
-  CreateEventDto,
-  EventFilter,
-  SendMessageDto,
-  UpdateEventDto,
-} from './dto/event.dto';
+import { CreateEventDto, EventFilter, SendMessageDto } from './dto/event.dto';
+import { CreateFeedbackDto } from '../feedback/dto/feedback.dto';
+import { ResponseDto } from '../../common/dto/response.dto';
 
 @Controller('events')
 export class EventController {
   constructor(private readonly service: EventService) {}
 
   @Post()
-  create(@Body() dto: CreateEventDto) {
-    return this.service.create(dto);
+  async create(@Body() dto: CreateEventDto): Promise<ResponseDto> {
+    const result = await this.service.create(dto);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Event created successfully',
+    });
   }
 
+  @UseInterceptors(ClassSerializerInterceptor)
   @Get()
-  findAll(@Query() filter: EventFilter) {
-    return this.service.findAll(filter);
+  async findAll(@Query() filter: EventFilter) {
+    const result = await this.service.findAll(filter);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Events fetched successfully',
+    });
   }
 
   @Get(':id')
-  findById(@Param('id') id: string) {
-    return this.service.findById(id);
+  async findById(@Param('id') id: string) {
+    const result = await this.service.findById(id);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Event fetched successfully',
+    });
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() req: UpdateEventDto) {
-    return this.service.update(id, req);
+  async update(@Param('id') id: string, @Body() req: any) {
+    const result = await this.service.update(id, req);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Event updated successfully',
+    });
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.service.delete(id);
+  async delete(@Param('id') id: string) {
+    const result = await this.service.delete(id);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Event deleted successfully',
+    });
   }
 
   @Post(':id/concierge/messages')
-  sendMessage(@Param('id') id: string, @Body() req: SendMessageDto) {
-    return this.service.eventSendMessages(id, req);
+  async sendMessage(@Param('id') id: string, @Body() req: SendMessageDto) {
+    const result = await this.service.sendMessages(id, req);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Send concierge message successfully',
+    });
+  }
+
+  @Post(':id/concierge/messages/:messageId/feedback')
+  async sendFeedback(
+    @Param('messageId') messageId: string,
+    @Body() req: CreateFeedbackDto,
+  ) {
+    req.message_id = messageId;
+    const result = await this.service.sendFeedback(req);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Send concierge message feedback successfully',
+    });
   }
 }

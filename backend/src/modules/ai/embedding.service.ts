@@ -34,12 +34,20 @@ export class EmbeddingService {
   }
 
   async geminiEmbed(text: string) {
-    const model = this.geminiClient.getGenerativeModel({
-      model: 'gemini-embedding-2',
-    });
+    try {
+      const model = this.geminiClient.getGenerativeModel({
+        model: 'gemini-embedding-2',
+      });
 
-    const response = await model.embedContent(text);
+      const response = await model.embedContent(text);
 
-    return response.embedding.values;
+      if (!response.embedding) {
+        throw new Error('Failed to generate embedding');
+      }
+
+      return response.embedding.values;
+    } catch (error) {
+      throw error;
+    }
   }
 }

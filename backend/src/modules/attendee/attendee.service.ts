@@ -8,6 +8,7 @@ import {
   UpdateAttendeeDto,
 } from './dto/attendee.dto';
 import { EmbeddingService } from '../ai/embedding.service';
+import { PinoLogger } from 'nestjs-pino';
 
 @Injectable()
 export class AttendeeService {
@@ -16,7 +17,14 @@ export class AttendeeService {
     private repo: Repository<Attendee>,
     private dataSource: DataSource,
     private embeddingService: EmbeddingService,
-  ) { }
+    private readonly logger: PinoLogger,
+  ) {
+    this.logger.setContext(AttendeeService.name);
+  }
+
+  log(action: string, args: Record<string, any>, message: string) {
+    this.logger.info({ action, ...args }, message ?? '');
+  }
 
   private buildProfile(attendee: Partial<Attendee>): string {
     return `
@@ -46,7 +54,7 @@ export class AttendeeService {
     if (filter.search) {
       query.andWhere(
         '(LOWER(attendee.name) LIKE LOWER(:search) OR LOWER(attendee.headline) LIKE LOWER(:search) OR LOWER(attendee.role) ' +
-        'LIKE LOWER(:search) OR LOWER(attendee.looking_for) LIKE LOWER(:search))',
+          'LIKE LOWER(:search) OR LOWER(attendee.looking_for) LIKE LOWER(:search))',
         { search: `%${filter.search}%` },
       );
     }
@@ -110,41 +118,82 @@ export class AttendeeService {
   }
 
   async search(eventId: string, query: any): Promise<any> {
-    const queryEmbed = await this.embeddingService.geminiEmbed(query);
-    const vector = `[${queryEmbed.join(',')}]`;
+    try {
+      const queryEmbed = await this.embeddingService.geminiEmbed(query);
+      const vector = `[${queryEmbed.join(',')}]`;
 
-    const res: any[] = await this.dataSource.query(
-      `
-      SELECT *,
-        (embedding <-> $1) AS distance
-      FROM attendees
-      WHERE event_id = $2
-        AND open_to_chat = true
-      ORDER BY distance ASC
-      LIMIT 5
-    `,
-      [vector, eventId],
-    );
+      const res: any[] = await this.dataSource.query(
+        `
+        SELECT *,
+          (embedding <-> $1) AS distance
+        FROM attendees
+        WHERE event_id = $2
+          AND open_to_chat = true
+        ORDER BY distance ASC
+        LIMIT 5
+      `,
+        [vector, eventId],
+      );
 
-    return { data: res };
+      return { data: res };
+    } catch (error) {
+      return {
+        data: [],
+        error: 'Failed to search attendees due to an internal error',
+      };
+    }
   }
 
   async scoreMatch(sourceAttendeeId: string, attendeeId: string) {
     const sourceAttendee = await this.repo.findOneBy({ id: sourceAttendeeId });
     const attendee = await this.repo.findOneBy({ id: attendeeId });
 
+    if (!sourceAttendee || !attendee) {
+      return { error: 'Attendee not found' };
+    }
+
+    const payload = {
+      source: {
+        id: sourceAttendee.id,
+        headline: sourceAttendee.headline ?? '',
+        name: sourceAttendee.name ?? '',
+        bio: sourceAttendee.bio ?? '',
+        role: sourceAttendee.role ?? '',
+        skills: sourceAttendee.skills ?? [],
+        looking_for: sourceAttendee.looking_for ?? '',
+      },
+      candidate: {
+        id: attendee.id,
+        headline: attendee.headline ?? '',
+        name: attendee.name ?? '',
+        bio: attendee.bio ?? '',
+        role: attendee.role ?? '',
+        skills: attendee.skills ?? [],
+        looking_for: attendee.looking_for ?? '',
+      },
+    };
+
+    this.log(
+      'get_score_match',
+      { sourceId: payload.source?.id, candidateId: payload.candidate?.id },
+      'Get score match',
+    );
+
     const resp = await fetch(`${process.env.ENGINE_API_URL}/scores`, {
       method: 'POST',
-      body: JSON.stringify({
-        source: sourceAttendee,
-        candidate: attendee,
-      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     });
 
     const result: any = await resp.json();
 
     if (!resp.ok) {
-      return { error: result?.error ?? 'Failed to calculate the score' };
+      return {
+        error:
+          result?.detail || result?.error || 'Failed to calculate the score',
+      };
     }
 
     return {

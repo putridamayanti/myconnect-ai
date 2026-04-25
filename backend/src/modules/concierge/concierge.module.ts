@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { MessageController } from './message.controller';
-import { ToolCallController } from './tool.controller';
 import { MessageService } from './message.service';
 import { ToolCallService } from './tool.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -13,7 +11,6 @@ import { AiService } from '../ai/ai.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Message, ToolCall, Attendee])],
-  controllers: [MessageController, ToolCallController],
   providers: [
     MessageService,
     ToolCallService,

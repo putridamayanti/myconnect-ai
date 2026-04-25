@@ -9,6 +9,7 @@ import {
 import { Type } from 'class-transformer';
 
 export class CreateFeedbackDto {
+  @IsOptional()
   @IsString()
   message_id: string;
 

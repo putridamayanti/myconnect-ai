@@ -66,11 +66,18 @@ export class MessageService {
       return { data: '' };
     }
 
-    const prompt = this.buildIntroPrompt(source, candidate, context);
-    const res = await this.aiService.generateContent(prompt);
+    try {
+      const prompt = this.buildIntroPrompt(source, candidate, context);
+      const res = await this.aiService.generateContent(prompt);
 
-    return {
-      data: res.text,
-    };
+      return {
+        data: res.text,
+      };
+    } catch (error) {
+      this.aiService['logger'].error({ error }, 'Error drafting intro message');
+      return {
+        data: 'I was unable to draft a message at this time. Please try again later.',
+      };
+    }
   }
 }

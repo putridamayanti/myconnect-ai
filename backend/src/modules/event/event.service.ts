@@ -10,6 +10,8 @@ import { tools } from '../ai/tools';
 import { ToolCallService } from '../concierge/tool.service';
 import { Part } from '@google/genai';
 import { PinoLogger } from 'nestjs-pino';
+import { FeedbackService } from '../feedback/feedback.service';
+import { CreateFeedbackDto } from '../feedback/dto/feedback.dto';
 
 @Injectable()
 export class EventService {
@@ -19,6 +21,7 @@ export class EventService {
     private messageService: MessageService,
     private aiService: AiService,
     private toolCallService: ToolCallService,
+    private feedbackService: FeedbackService,
     private readonly logger: PinoLogger,
   ) {
     this.logger.setContext(EventService.name);
@@ -83,19 +86,22 @@ export class EventService {
     ];
 
     if (!allowedTools.includes(name)) {
-      console.log('Invalid Tool: Invalid arguments');
+      this.logger.info({ action: 'validate_tool' }, 'Invalid Tool');
       return false;
     }
 
     if (typeof args !== 'object') {
-      console.log('Invalid Tool: Invalid arguments');
+      this.logger.info(
+        { action: 'validate_tool' },
+        'Invalid Tool: Invalid arguments',
+      );
       return false;
     }
 
     return true;
   }
 
-  async eventSendMessages(eventId: string, req: SendMessageDto) {
+  async sendMessages(eventId: string, req: SendMessageDto) {
     this.log(
       'send_message',
       { eventId, attendeeId: req.attendee_id },
@@ -125,85 +131,113 @@ export class EventService {
     let matches: any[] = [];
     let finalText = '';
 
-    for (let i = 0; i < 5; i++) {
-      this.log(
-        'get_tool',
-        {
+    try {
+      for (let i = 0; i < 4; i++) {
+        this.log(
+          'get_tool',
+          {
+            eventId,
+            attendeeId: req.attendee_id,
+            messageCount: messages?.length,
+          },
+          'Generate with tool',
+        );
+
+        const resp = await this.aiService.generateWithTools(messages, tools);
+        const candidate = resp.candidates?.[0];
+
+        if (candidate?.finishReason === 'SAFETY') {
+          this.logger.warn('Gemini response blocked by safety filters');
+          finalText =
+            "I'm sorry, I cannot process this request due to safety filters. Please try rephrasing your message.";
+          break;
+        }
+
+        const content = candidate?.content;
+
+        const functionCallPart = content?.parts?.find(
+          (p: Part) => p?.functionCall,
+        );
+        if (!functionCallPart) {
+          finalText = resp?.text ?? '';
+          break;
+        }
+
+        const functionCall = functionCallPart.functionCall;
+        const validateTool = this.validateToolCall(
+          functionCall?.name ?? '',
+          functionCall?.args ?? {},
+        );
+        if (!validateTool) {
+          this.logger.warn({ functionCall }, 'Tool validation failed');
+          continue;
+        }
+
+        if (functionCall?.name) {
+          usedTools = [...usedTools, functionCall?.name];
+        }
+
+        this.logger.debug(
+          { tool: functionCall?.name, args: functionCall?.args },
+          'Executing tool',
+        );
+
+        const resExecute: any = await this.toolCallService.executeTool(
+          functionCall?.name ?? '',
+          functionCall?.args,
           eventId,
-          attendeeId: req.attendee_id,
-          messageCount: messages?.length,
-        },
-        'Generate with tool',
-      );
+          req.attendee_id,
+        );
+        if (!resExecute || resExecute?.data?.length === 0) {
+          break;
+        }
 
-      const resp = await this.aiService.generateWithTools(messages, tools);
-      const candidate = resp.candidates?.[0];
-      const content = candidate?.content;
+        await this.toolCallService.create({
+          message_id: resMessage?.id,
+          tool_name: functionCall?.name ?? '',
+          input: functionCall?.args,
+          output: resExecute?.data,
+        });
 
-      const functionCallPart = content?.parts?.find(
-        (p: Part) => p?.functionCall,
-      );
-      if (!functionCallPart) {
-        finalText = resp?.text ?? '';
-        break;
-      }
+        if (functionCall?.name === 'search_attendees') {
+          matches = resExecute?.data ?? [];
+        }
 
-      const functionCall = functionCallPart.functionCall;
-      const validateTool = this.validateToolCall(
-        functionCall?.name ?? '',
-        functionCall?.args ?? {},
-      );
-      if (!validateTool) {
-        continue;
-      }
-
-      if (functionCall?.name) {
-        usedTools = [...usedTools, functionCall?.name];
-      }
-
-      this.logger.debug(
-        { tool: functionCall?.name, args: functionCall?.args },
-        'Executing tool',
-      );
-
-      const resExecute: any = await this.toolCallService.executeTool(
-        functionCall?.name ?? '',
-        functionCall?.args,
-        eventId,
-        req.attendee_id,
-      );
-      if (!resExecute || resExecute?.data?.length === 0) {
-        break;
-      }
-
-      await this.toolCallService.create({
-        message_id: resMessage?.id,
-        tool_name: functionCall?.name ?? '',
-        input: functionCall?.args,
-        output: resExecute?.data,
-      });
-
-      if (functionCall?.name === 'search_attendees') {
-        matches = resExecute?.data ?? [];
-      }
-
-      messages = [
-        ...messages,
-        {
-          role: MessageRole.ASSISTANT,
-          parts: [
-            {
-              functionResponse: {
-                name: functionCall?.name,
-                response: {
-                  result: resExecute?.data ?? null,
-                  error: resExecute?.error ?? false,
+        messages = [
+          ...messages,
+          {
+            role: MessageRole.ASSISTANT,
+            parts: [
+              {
+                functionResponse: {
+                  name: functionCall?.name,
+                  response: {
+                    result: resExecute?.data ?? null,
+                    error: resExecute?.error ?? false,
+                  },
                 },
               },
-            },
-          ],
+            ],
+          },
+        ];
+      }
+    } catch (error) {
+      this.logger.error({ error }, 'Critical error in sendMessages AI loop');
+      finalText =
+        finalText ||
+        "I'm sorry, I'm having trouble processing your request right now. Please try again in a moment.";
+    }
+
+    // Save AI response to history if we have one
+    if (finalText) {
+      await this.messageService.create({
+        event_id: eventId,
+        attendee_id: req.attendee_id,
+        role: MessageRole.ASSISTANT,
+        content: {
+          text: finalText,
         },
-      ];
+      });
     }
 
     return {
@@ -214,5 +248,9 @@ export class EventService {
         total_matches: matches.length,
       },
     };
+  }
+
+  async sendFeedback(req: CreateFeedbackDto) {
+    return this.feedbackService.create(req);
   }
 }

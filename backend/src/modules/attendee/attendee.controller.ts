@@ -7,11 +7,11 @@ import {
   Patch,
   Delete,
   UseInterceptors,
-  ClassSerializerInterceptor, Query,
+  ClassSerializerInterceptor,
+  Query,
 } from '@nestjs/common';
 import { AttendeeService } from './attendee.service';
 import { AttendeeFilter, CreateAttendeeDto } from './dto/attendee.dto';
-import { Attendee } from './attendee.entity';
 import { ResponseDto } from '../../common/dto/response.dto';
 
 @Controller('attendees')
@@ -20,34 +20,53 @@ export class AttendeeController {
 
   @UseInterceptors(ClassSerializerInterceptor)
   @Post()
-  create(@Body() dto: CreateAttendeeDto): Promise<Attendee> {
-    return this.service.create(dto);
+  async create(@Body() dto: CreateAttendeeDto): Promise<ResponseDto> {
+    const result = await this.service.create(dto);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Attendee created successfully',
+    });
   }
 
   @UseInterceptors(ClassSerializerInterceptor)
   @Get()
   async findAll(@Query() filter: AttendeeFilter) {
     const result = await this.service.findAll(filter);
-    const response = {
+    return new ResponseDto({
       status_code: 200,
       data: result,
       message: 'Attendees fetched successfully',
-    };
-    return new ResponseDto(response);
+    });
   }
 
   @Get(':id')
-  findById(@Param('id') id: string) {
-    return this.service.findById(id);
+  async findById(@Param('id') id: string) {
+    const result = await this.service.findById(id);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Attendee fetched successfully',
+    });
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() req: any) {
-    return this.service.update(id, req);
+  async update(@Param('id') id: string, @Body() req: any) {
+    const result = await this.service.update(id, req);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Attendee updated successfully',
+    });
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.service.delete(id);
+  async delete(@Param('id') id: string) {
+    const result = await this.service.delete(id);
+    return new ResponseDto({
+      status_code: 200,
+      data: result,
+      message: 'Attendee deleted successfully',
+    });
   }
 }
