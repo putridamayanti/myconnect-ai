@@ -8,8 +8,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE_NAME: ${{ github.repository }}/myconnect-backend
-  ENGINE_IMAGE_NAME: ${{ github.repository }}/myconnect-engine
 
 jobs:
 
@@ -28,10 +26,9 @@ jobs:
           sudo chmod +x /usr/local/bin/docker-compose
           docker-compose version
 
-      - name: Lowercase owner
-        id: lowercase
+      - name: Lowercase repo
         run: |
-          echo "OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+          echo "REPO=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -45,10 +42,13 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and Push Images
+        env:
+          BACKEND_IMAGE: ghcr.io/${{ env.REPO }}/myconnect-backend
+          ENGINE_IMAGE: ghcr.io/${{ env.REPO }}/myconnect-engine
         run: |
-          # Build and tag images
+          # Build images using environment variables defined in docker-compose.yml
           docker-compose build
           
-          # Push images individually
-          docker push "${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}"
-          docker push "${{ env.REGISTRY }}/${{ env.ENGINE_IMAGE_NAME }}"
+          # Push images
+          docker push "$BACKEND_IMAGE"
+          docker push "$ENGINE_IMAGE"
