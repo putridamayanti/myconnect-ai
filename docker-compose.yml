@@ -1,5 +1,6 @@
 services:
   backend:
+    image: ${BACKEND_IMAGE:-myconnect-backend}
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -16,6 +17,7 @@ services:
       - db
 
   engine:
+    image: ${ENGINE_IMAGE:-myconnect-engine}
     build:
       context: ./engine
       dockerfile: Dockerfile
