@@ -61,14 +61,20 @@ async def calculate_score(
     prompt = prompt.replace("{{candidate}}", str(req.candidate))
     prompt = prompt.replace("{{shared}}", ",".join(shared))
 
-    api_key = os.getenv("GEMINI_API_KEY")
-    client = genai.Client(api_key=api_key)
+    reason = ""
+    try:
+        api_key = os.getenv("GEMINI_API_KEY")
+        client = genai.Client(api_key=api_key)
 
-    response = client.models.generate_content(
-        model="gemini-3-flash-preview", contents=prompt
-    )
+        response = client.models.generate_content(
+            model="gemini-3-flash-preview", contents=prompt
+        )
+        reason = response.text
+    except Exception as e:
+        reason = ""
 
     return CalculateScoreResponse(
+        candidate_id=req.candidate.id,
         score=score,
-        reason=response.text
+        reason=reason
     )

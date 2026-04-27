@@ -45,6 +45,8 @@ export class AiService {
   }
 
   async generateWithTools(messages: any[], tools: any[]) {
+    const start = Date.now();
+
     try {
       const systemPrompt = this.buildSystemPrompt();
       const contents = [
@@ -67,6 +69,20 @@ export class AiService {
         this.logger.error('Gemini returned no candidates');
         throw new Error('AI failed to generate a response. Please try again.');
       }
+
+      const latency = Date.now() - start;
+      const usage = response?.usageMetadata || {};
+
+      this.logger.info({
+        event: 'llm_call',
+        latency_ms: latency,
+        input_tokens: usage?.promptTokenCount ?? null,
+        output_tokens: usage?.candidatesTokenCount ?? null,
+        total_tokens:
+          (usage?.promptTokenCount || 0) + (usage?.candidatesTokenCount || 0) ||
+          null,
+        message_count: messages.length,
+      });
 
       return response;
     } catch (error) {

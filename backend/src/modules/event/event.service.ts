@@ -199,8 +199,31 @@ export class EventService {
           output: resExecute?.data,
         });
 
+        this.logger.debug(
+          { tool: functionCall?.name, output: resExecute?.data },
+          'Tool execution result',
+        );
+
         if (functionCall?.name === 'search_attendees') {
           matches = resExecute?.data ?? [];
+        } else if (functionCall?.name === 'score_match') {
+          const findAttendee = matches.findIndex(
+            (e) => e.id === resExecute?.data?.candidate_id,
+          );
+          if (findAttendee !== -1) {
+            matches[findAttendee].score = resExecute?.data?.score;
+            matches[findAttendee].reason = resExecute?.data?.reason;
+          }
+        } else if (functionCall?.name === 'draft_intro_message') {
+          const resData = resExecute?.data;
+          if (resData?.candidate_id) {
+            const findAttendee = matches.findIndex(
+              (e) => e.id === resData?.candidate_id,
+            );
+            if (findAttendee !== -1) {
+              matches[findAttendee].intro = resData?.message;
+            }
+          }
         }
 
         messages = [
@@ -221,23 +244,23 @@ export class EventService {
           },
         ];
       }
+
+      // Save AI response to history if we have one
+      if (finalText) {
+        await this.messageService.create({
+          event_id: eventId,
+          attendee_id: req.attendee_id,
+          role: MessageRole.ASSISTANT,
+          content: {
+            text: finalText,
+          },
+        });
+      }
     } catch (error) {
       this.logger.error({ error }, 'Critical error in sendMessages AI loop');
       finalText =
         finalText ||
         "I'm sorry, I'm having trouble processing your request right now. Please try again in a moment.";
-    }
-
-    // Save AI response to history if we have one
-    if (finalText) {
-      await this.messageService.create({
-        event_id: eventId,
-        attendee_id: req.attendee_id,
-        role: MessageRole.ASSISTANT,
-        content: {
-          text: finalText,
-        },
-      });
     }
 
     return {

@@ -17,6 +17,7 @@ class CalculateScoreRequest(BaseModel):
     candidate: AttendeeSchema
 
 class CalculateScoreResponse(BaseModel):
+    candidate_id: str
     score: int
     reason: str
     error: Optional[str] = None

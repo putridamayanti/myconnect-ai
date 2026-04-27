@@ -71,7 +71,10 @@ export class MessageService {
       const res = await this.aiService.generateContent(prompt);
 
       return {
-        data: res.text,
+        data: {
+          message: res.text,
+          candidate_id: candidate?.id,
+        },
       };
     } catch (error) {
       this.aiService['logger'].error({ error }, 'Error drafting intro message');
